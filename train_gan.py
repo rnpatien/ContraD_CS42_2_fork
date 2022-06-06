@@ -31,6 +31,8 @@ from utils import Logger
 from utils import count_parameters
 from utils import set_grad
 
+from mask import Mask
+
 # import for gin binding
 import penalty
 
@@ -61,8 +63,8 @@ def parse_args():
                         help='Do not save GIF of sample generations from a fixed latent periodically during training')
     parser.add_argument('--n_eval_avg', default=3, type=int,
                         help='How many times to average FID and IS')
-    parser.add_argument('--print_every', help='', default=50, type=int)
-    parser.add_argument('--evaluate_every', help='', default=2000, type=int)
+    parser.add_argument('--print_every', help='', default=96, type=int)
+    parser.add_argument('--evaluate_every', help='', default=2000, type=int) #rp??
     parser.add_argument('--save_every', help='', default=100000, type=int)
     parser.add_argument('--comment', help='Comment', default='', type=str)
 
@@ -81,6 +83,10 @@ def parse_args():
                         help='Node rank for distributed training')
     parser.add_argument('--port', default=40404, type=int,
                         help='Port number to be allocated for distributed training')
+
+    # rp additions 
+    parser.add_argument('--imbalanceDS', action='store_true', help='load index to imbalanceDS for cifar10')
+    parser.add_argument('--trainSplit', default='split1_D_b.npy', type=str, help='Split list') #cifar10_imbSub_with_subsets/
 
     return parser.parse_args()
 
@@ -136,9 +142,16 @@ def train(P, opt, train_fn, models, optimizers, train_loader, logger):
             metrics['fid_score'] = FIDScore(opt['dataset'], opt['fid_size'], P.n_eval_avg)
 
     logger.log_dirname("Steps {}".format(P.starting_step))
+    no_steps_in_epoch=int (50000/opt['batch_size'])
     dist.barrier()
 
     for step in range(P.starting_step, opt['max_steps']+1):
+        if P.mode == "damage" and step % no_steps_in_epoch== 1  :
+            # print('update prune mask')
+            pruneMask = Mask(discriminator)
+            magnitudePrunePercent = 0.9
+            pruneMask.magnitudePruning(magnitudePrunePercent, 0)
+
         generator.train()
         discriminator.train()
         if P.use_warmup:
@@ -154,13 +167,15 @@ def train(P, opt, train_fn, models, optimizers, train_loader, logger):
             images = images.cuda()
             gen_images = _sample_generator(generator, images.size(0),
                                            enable_grad=False)
-
-            d_loss, aux = train_fn["D"](P, discriminator, opt, images, gen_images)
-            loss = d_loss + aux['penalty']
-
-            opt_D.zero_grad()
-            loss.backward()
-            opt_D.step()
+            if P.mode == "damage":
+                d_loss, aux = train_fn["D"](P, discriminator, opt, images, gen_images,opt_D=opt_D)
+                loss = d_loss
+            else:
+                d_loss, aux = train_fn["D"](P, discriminator, opt, images, gen_images)
+                loss = d_loss  + aux['penalty']
+                opt_D.zero_grad()
+                loss.backward()
+                opt_D.step()
             losses['D_loss'].append(d_loss.item())
             losses['D_penalty'].append(aux['penalty'].item())
             losses['D_real'].append(aux['d_real'].item())
@@ -237,11 +252,15 @@ def worker(gpu, P):
 
     P.rank = P.rank * P.n_gpus_per_node + gpu
     dist.init_process_group(backend='nccl',
-                            init_method=f'tcp://127.0.0.1:{P.port}',
+                            # init_method=f'tcp://127.0.0.1:{P.port}',
+                            init_method='tcp://127.0.0.1:40404',
                             world_size=P.world_size,
                             rank=P.rank)
 
-    train_set, _, image_size = get_dataset(dataset=options['dataset'])
+    if P.imbalanceDS:
+        train_set, _, image_size = get_dataset(dataset=options['dataset'],splitFname=P.trainSplit)
+    else:
+        train_set, _, image_size = get_dataset(dataset=options['dataset'])
     train_sampler = DistributedSampler(train_set)
 
     options['batch_size'] = options['batch_size'] // P.n_gpus_per_node
@@ -310,15 +329,18 @@ def worker(gpu, P):
     P.augment_fn = get_augment(mode=P.aug).cuda()
     generator = DistributedDataParallel(generator, device_ids=[gpu], broadcast_buffers=False)
     generator.sample_latent = generator.module.sample_latent
-    discriminator = DistributedDataParallel(discriminator, device_ids=[gpu], broadcast_buffers=False)
+    discriminator = discriminator.cuda()
+    discriminator = DistributedDataParallel(discriminator, device_ids=[gpu], broadcast_buffers=False,find_unused_parameters=True)  #
 
     train(P, options, P.train_fn,
           models=(generator, discriminator),
           optimizers=(G_optimizer, D_optimizer),
           train_loader=train_loader, logger=logger)
+    aa=1
 
-
+import sys
 if __name__ == '__main__':
+    print ('Argument List:', str(sys.argv))
     P = parse_args()
     if P.comment:
         P.comment = '_' + P.comment

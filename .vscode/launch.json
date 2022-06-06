@@ -1,0 +1,52 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            // "program": "test_inception.py",
+            // "program": "train_gan.py",
+            // "program": "test_gan_sample.py",
+            // "program": "test_gan_sample_RP.py",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+
+                // training experiement in paper run "train_gan.py" as per contraD document
+            // "args": ["configs/gan/cifar10/c10_b64.gin", "sndcgan", "--mode=std"]  //DC_FL
+            // "args": ["configs/gan/cifar10/c10_b64.gin", "sndcgan", "--mode=std","--imbalance","--trainSplit=split1_D_b.npy"] //DC_PR  
+            // "args": ["configs/gan/cifar10/c10_b64.gin", "sndcgan", "--mode=std","--imbalance","--trainSplit=split1_D_i.npy"] //DC_IM    
+
+            //  "args": ["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup"] // CD_FL
+            //  "args": ["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_b.npy"] // CD_PR
+            //  "args": ["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_i.npy"] // CD_IM
+
+            //  "args": ["configs/gan/cifar10/c10_b512.gin", "snresPrune", "--mode=damage","--aug=simclr","--use_warmup"] // CD_FL
+            //  "args": ["configs/gan/cifar10/c10_b512.gin", "snresPrune", "--mode=damage","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_b.npy"] // CD_PR
+            //  "args": ["configs/gan/cifar10/c10_b512.gin", "snresPrune", "--mode=damage","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_i.npy"] // CD_IM
+            
+                // generate samples for each experiement using test_gan_sample.py. To be run on each experiment log directory 
+            // "args": [ "logs/gan/c10_b512X/sndcgan/contrad_simclr/3383/gen_best.pt",  "sndcgan", "--n_samples=2000"]
+            
+                // create FID score of all samples. First copy samples to SAMPLE_ROOT/["DC_FL","DC_IM","DC_PR","CD_FL","CD_IM","CD_PR","DM_FL","DM_IM","DM_PR"] /img   
+                // then run test_tf_inception_experiments.py (parameter SAMPLE_ROOT, STATS)
+            // "args": [ "/mnt/e/5704_testcase","third_party/fid/cifar10_stats.npz"] 
+
+                    // next section is focus on the imbalance samples for contraD and dammage
+                // train a linear evaluator using test_lineval.py (paramater full_experiemnt_dic) to use for classifying images by class
+            // "args": [ "logs/gan/c10_b512/snresnet18/contrad_simclr_L1.0_T0.1/9950/dis.pt",  "snresnet18"]
+
+                // use the linear evaluator to move the samples from experiement/img to experiement/img/[0,...9] using test_read_classify_samples.py
+                // parameters  ( SAMPLE_ROOT, linear eval directory, linear eval wieghts)
+            // "args": [ "/mnt/e/5704_testcase", "logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL","logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL/lin_eval_3169.pth.tar",  "sndcgan"]
+
+                // finally manually combine the minor and major class image and run test_tf_inception.py
+                // parameter (sample dic, Stats)
+            // "args": [ "logs/gan/c10_b512X/sndcgan/contrad_simclr/3383/samples_5576_n200","third_party/fid/cifar10_stats.npz"] 
+        }
+    ]
+}

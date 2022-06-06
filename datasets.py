@@ -1,25 +1,48 @@
 import os
 
 from torchvision import datasets, transforms
+from cifar_imbalance import CustomCIFAR10
+import numpy as np
+
 
 DATA_PATH = os.environ.get('DATA_DIR', 'data/')
 
 
-def get_dataset(dataset):
+def get_dataset(dataset, splitFname=None):
     if dataset == 'cifar10' or dataset == 'cifar100':
-        image_size = (32, 32, 3)
-        transform = transforms.ToTensor()
+        if splitFname is None:
+            image_size = (32, 32, 3)
+            transform = transforms.ToTensor()
 
-        if dataset == 'cifar10':
-            data = datasets.CIFAR10
-        else:
-            data = datasets.CIFAR100
+            if dataset == 'cifar10':
+                data = datasets.CIFAR10
+            else:
+                data = datasets.CIFAR100
 
-        train_set = data(DATA_PATH, train=True, transform=transform, download=True)
-        test_set = data(DATA_PATH, train=False, transform=transform, download=True)
+            train_set = data(DATA_PATH, train=True, transform=transform, download=True)
+            test_set = data(DATA_PATH, train=False, transform=transform, download=True)
+
+            return train_set, test_set, image_size
+        else: 
+            image_size = (32,32, 3)
+            transform = transforms.ToTensor()
+
+            train_idx = list(np.load('split/cifar10_imbSub_with_subsets/{}'.format(splitFname)))
+            train_set = CustomCIFAR10(train_idx,root=DATA_PATH,  transform=transform)  #+'
+            test_set = datasets.CIFAR10(DATA_PATH, train=False, transform=transform)
+            print('imbalance class numbers',train_set.idxsNumPerClass)
+
+            return train_set, test_set, image_size
+    elif dataset == 'GTSRB' :
+        image_size = (32,32, 3)
+        #transform = transforms.ToTensor()
+        transform=transforms.Resize(size=(32,32))
+        data = datasets.GTSRB
+
+        train_set = data(DATA_PATH, split='train', transform=transform,download=True)
+        test_set = data(DATA_PATH, split='test', transform=transform, download=True)
 
         return train_set, test_set, image_size
-
     elif dataset == 'cifar10_lin' or dataset == 'cifar100_lin':
         """CIFAR-10/100 for linear evaluation.
         We follow the augmentation scheme used in [1] specially for linear evaluation. 
@@ -133,6 +156,10 @@ def get_dataset_ref(dataset):
         else:
             data = datasets.CIFAR100
         reference = data(DATA_PATH, train=False, transform=transforms.ToTensor(), download=True)
+    elif dataset == 'GTSRB' :
+        data = datasets.GTSRB
+        transform=transforms.Resize(size=(32,32))
+        reference = data(DATA_PATH, split='test', transform=transform, download=True)
 
     elif dataset == 'cifar10_hflip' or dataset == 'cifar100_hflip':
         transform = transforms.Compose([

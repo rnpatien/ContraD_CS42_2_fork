@@ -10,7 +10,7 @@ from augment.spatial import *
 from third_party.diffaug import DiffAugment
 
 
-@gin.configurable("augment", whitelist=["fn"])
+@gin.configurable("augment")  #, whitelist=["fn"]
 def get_augment(mode='none', **kwargs):
     _mapping = {
         'none': NoAugment,
@@ -37,7 +37,7 @@ class NoAugment(nn.Module):
         return input
 
 
-@gin.configurable(whitelist=["sigma"])
+@gin.configurable() #whitelist=["sigma"]
 class Gaussian(nn.Module):
     def __init__(self, sigma):
         super(Gaussian, self).__init__()
