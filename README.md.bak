@@ -1,19 +1,26 @@
-# Extensions to ContraD package supporting dammageGAN and imbalance dataset 
+# Training GANs with Stronger Augmentations via Contrastive Discriminator (ICLR 2021)
 
 This repository contains the code for reproducing the paper:
-** Do we need a new generative model? A practical comparison between VAE and GANs variants Sydney university Capstone CS48-2 
-by Yanbing Liu, yliu6286@uni.sydney.edu.au, Yuqing Chen, yche4082@uni.sydney.edu.au, Tianyu Wang, twan8010@uni.sydney.edu.au, Xintong Chu,xchu5428@uni.sydney.edu.au
-Moyang Chen,  mche5278@uni.sydney.edu.au, Ziheng Pan,  zpan0520@uni.sydney.edu.au, Robert Patience,  rpat3029@uni.sydney.edu.au
+**[Training GANs with Stronger Augmentations via Contrastive Discriminator](https://arxiv.org/abs/2103.09742)** 
+by [Jongheon Jeong](https://sites.google.com/view/jongheonj) and [Jinwoo Shin](http://alinlab.kaist.ac.kr/shin.html). 
+
+**TL;DR**: *We propose a novel discriminator of GAN showing that contrastive representation 
+learning, e.g., SimCLR, and GAN can benefit each other when they are jointly trained.* 
+
+![Demo](./resources/demo.jpg)
+
+*Qualitative comparison of unconditional generations from GANs on high-resoultion, yet limited-sized 
+datasets of AFHQ-Dog (4739 samples), AFHQ-Cat (5153 samples) and AFHQ-Wild (4738 samples) datasets.*
 
 
 ## Overview
 
-![Teaser](./resources/concept1.jpg)
+![Teaser](./resources/concept.jpg)
 
 *An overview of Contrastive Discriminator (ContraD).
-In contraD the representation is not learned from the discriminator loss (L_dis), 
+The representation of ContraD is not learned from the discriminator loss (L_dis), 
 but from two contrastive losses (L+_con and L-_con), each is for the real and fake samples, respectively.
-The damage GAN users the same approach but users pruning of the network to highlight minor features*
+The actual discriminator that minimizes L_dis is simply a 2-layer MLP head upon the learned contrastive representation.*
 
 ## Dependencies
 
@@ -41,11 +48,44 @@ You can change this path by setting the `$DATA_DIR` environment variable.
 
 **CIFAR-10/100** can be automatically downloaded by running any of the provided training scripts.   
 
+**CelebA-HQ-128**:
+1. Download the [CelebA-HQ dataset](https://github.com/switchablenorms/CelebAMask-HQ) and extract it under `$DATA_DIR`.
+2. Run [`third_party/preprocess_celeba_hq.py`](third_party/preprocess_celeba_hq.py) to resize and split the 1024x1024 images 
+   in `$DATA_DIR/CelebAMask-HQ/CelebA-HQ-img`:
+   ```
+   python third_party/preprocess_celeba_hq.py
+   ```
+
+**AFHQ datasets**:
+1. Download the [AFHQ dataset](https://github.com/clovaai/stargan-v2/blob/master/README.md#animal-faces-hq-dataset-afhq) and extract it under `$DATA_DIR`. 
+2. One has to reorganize the directories in `$DATA_DIR/afhq` to make it compatible with
+   [`torchvision.datasets.ImageFolder`](https://pytorch.org/vision/0.8/datasets.html#torchvision.datasets.ImageFolder).
+   Please refer the detailed file structure provided in below.
+
 The structure of `$DATA_DIR` should be roughly like as follows:   
 ```
 $DATA_DIR
 ├── cifar-10-batches-py   # CIFAR-10
-
+├── cifar-100-python      # CIFAR-100
+├── CelebAMask-HQ         # CelebA-HQ-128
+│   ├── CelebA-128-split  # Resized to 128x128 from `CelebA-HQ-img`
+│   │   ├── train
+│   │   │   └── images
+│   │   │       ├── 0.jpg
+│   │   │       └── ...
+│   │   └── test
+│   ├── CelebA-HQ-img     # Original 1024x1024 images
+│   ├── CelebA-HQ-to-CelebA-mapping.txt
+│   └── README.txt
+└── afhq                  # AFHQ datasets
+    ├── cat
+    │   ├── train
+    │   │   └── images
+    │   │       ├── flickr_cat_00xxxx.jpg
+    │   │       └── ...
+    │   └── val
+    ├── dog
+    └── wild
 ```
 
 ## Scripts
@@ -57,9 +97,11 @@ We provide training scripts to reproduce the results in `train_*.py`, as listed 
 | File | Description |
 | ------ | ------ |
 | [train_gan.py](train_gan.py) |  Train a GAN model other than StyleGAN2. DistributedDataParallel supported. |
-
+| [train_stylegan2.py](train_stylegan2.py) | Train a StyleGAN2 model. It additionally implements the details of StyleGAN2 training, e.g., R1 regularization and EMA. DataParallel supported. |
+| [train_stylegan2_contraD.py](train_stylegan2_contraD.py) | Training script optimized for StyleGAN2 + ContraD. It runs faster especially on high-resolution datasets, e.g., 512x512 AFHQ. DataParallel supported. |
 
 The samples below demonstrate how to run each script to train GANs with ContraD.
+More instructions to reproduce our experiments, e.g., other baselines, can be found in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 One can modify `CUDA_VISIBLE_DEVICES` to further specify GPU number(s) to work on.
 
 ```
@@ -67,15 +109,15 @@ One can modify `CUDA_VISIBLE_DEVICES` to further specify GPU number(s) to work o
 CUDA_VISIBLE_DEVICES=0 python train_gan.py configs/gan/cifar10/c10_b512.gin sndcgan \
 --mode=contrad --aug=simclr --use_warmup
 
-```
-### Experiments CIFAR-10
-```
-# G: SNDCGAN / D: SNDCGAN 
-python train_gan.py configs/gan/cifar10/c10_b64.gin sndcgan --mode=std
+# StyleGAN2 + ContraD on CIFAR-10 - it is OK to simply use `train_stylegan2.py` even with ContraD
+python train_stylegan2.py configs/gan/stylegan2/c10_style64.gin stylegan2 \
+--mode=contrad --aug=simclr --lbd_r1=0.1 --no_lazy --halflife_k=1000 --use_warmup
 
+# Nevertheless, StyleGAN2 + ContraD can be trained more efficiently with `train_stylegan2_contraD.py` 
+python train_stylegan2_contraD.py configs/gan/stylegan2/afhq_dog_style64.gin stylegan2_512 \
+--mode=contrad --aug=simclr_hq --lbd_r1=0.5 --halflife_k=20 --use_warmup \
+--evaluate_every=5000 --n_eval_avg=1 --no_gif 
 ```
-
-
 
 ### Testing Scripts
 
@@ -112,4 +154,13 @@ python train_gan.py configs/gan/cifar10/c10_b64.gin sndcgan --mode=std
   or manually computed - you can refer [`third_party/tf/examples`](third_party/tf/examples) for the sample scripts to this end.
   
 
-
+## Citation
+```
+@inproceedings{jeong2021contrad,
+  title={Training {GAN}s with Stronger Augmentations via Contrastive Discriminator},
+  author={Jongheon Jeong and Jinwoo Shin},
+  booktitle={International Conference on Learning Representations},
+  year={2021},
+  url={https://openreview.net/forum?id=eo6U4CAwVmg}
+}
+```
