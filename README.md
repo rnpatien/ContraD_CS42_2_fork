@@ -87,7 +87,7 @@ CUDA_VISIBLE_DEVICES=0 python train_gan.py configs/gan/cifar10/c10_b512.gin sndc
 
 
 ### Testing Scripts
-** FID scores for all experiements
+#### FID scores for all experiements
 * The script [test_gan_sample.py](test_gan_sample.py) generates and saves random samples from 
   a pre-trained generator model into `*.jpg` files. Need to be run for each experiement. Example parameters,
   ```
@@ -96,14 +96,14 @@ CUDA_VISIBLE_DEVICES=0 python train_gan.py configs/gan/cifar10/c10_b512.gin sndc
   will load the generator stored at `PATH/TO/G.pt`, generate `n_samples=20000` samples from it,
   and save them under `PATH/TO/samples_*/`.
 
-* To create FID score of all samples. First copy samples to SAMPLE_ROOT/["DC_FL","DC_IM","DC_PR","CD_FL","CD_IM","CD_PR","DM_FL","DM_IM","DM_PR"
-* test_tf_inception_experiments.py (parameter SAMPLE_ROOT, STATS) Example parameters:
+* To create FID score of all samples. First copy samples to SAMPLE_ROOT/["DC_FL","DC_IM","DC_PR","CD_FL","CD_IM","CD_PR","DM_FL","DM_IM","DM_PR"] /img   
+* Then test_tf_inception_experiments.py (parameter SAMPLE_ROOT, STATS) Example parameters:
   ```
   [ "/mnt/e/5704_testcase","third_party/fid/cifar10_stats.npz"] 
   ```
   will load each sample set and create log of FID and inception of all experiments
 
-** FID scores for major and minor imbalance class
+#### FID scores for major and minor imbalance class
 * The script [test_lineval.py](test_lineval.py) performs linear evaluation for a given 
   pre-trained discriminator model stored at `model_path`:
   ```
@@ -113,6 +113,7 @@ CUDA_VISIBLE_DEVICES=0 python train_gan.py configs/gan/cifar10/c10_b512.gin sndc
    
 * Use the linear evaluator to move the samples from experiement/img to experiement/img/[0,...9] using test_read_classify_samples.py
 parameters  ( SAMPLE_ROOT, linear eval directory, linear eval wieghts). Examples parameters:
+
 [ "/mnt/e/5704_testcase", "logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL","logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL/lin_eval_3169.pth.tar",  "sndcgan"]
 
 * The script [test_tf_inception.py](test_tf_inception.py) computes Fréchet Inception distance (FID) and
