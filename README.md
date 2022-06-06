@@ -1,7 +1,7 @@
-# Extensions to ContraD package supporting dammageGAN and imbalance dataset 
+# Extensions to ContraD package supporting damage GAN and imbalance dataset 
 
 This repository contains the code for reproducing the paper:
-** Do we need a new generative model? A practical comparison between VAE and GANs variants Sydney university Capstone CS48-2 
+** Do we need a new generative model? A practical comparison between VAE and GANs variants Sydney university Capstone CS48-2 ** 
 by Yanbing Liu, yliu6286@uni.sydney.edu.au, Yuqing Chen, yche4082@uni.sydney.edu.au, Tianyu Wang, twan8010@uni.sydney.edu.au, Xintong Chu,xchu5428@uni.sydney.edu.au
 Moyang Chen,  mche5278@uni.sydney.edu.au, Ziheng Pan,  zpan0520@uni.sydney.edu.au, Robert Patience,  rpat3029@uni.sydney.edu.au
 
@@ -68,45 +68,59 @@ CUDA_VISIBLE_DEVICES=0 python train_gan.py configs/gan/cifar10/c10_b512.gin sndc
 --mode=contrad --aug=simclr --use_warmup
 
 ```
-### Experiments CIFAR-10
+### Experiments CIFAR-10 using train_gan.py (parameter lists)
 ```
-# G: SNDCGAN / D: SNDCGAN 
-python train_gan.py configs/gan/cifar10/c10_b64.gin sndcgan --mode=std
+# G: SNDCGAN / D: SNDCGAN /Loss:BCEL (full dataset, balanced, imbalanced )
+["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup"] // CD_FL
+["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_b.npy"] // CD_PR
+["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_i.npy"] // CD_IM
+# G: SNDCGAN / D: SNResNet-18 /Loss:simclr 
+["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup"] // CD_FL
+["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_b.npy"] // CD_PR
+["configs/gan/cifar10/c10_b512.gin", "snresnet18", "--mode=contrad","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_i.npy"] // CD_IM
+# G: SNDCGAN / D: Pruned SNResNet-18 /Loss:dammage 
+["configs/gan/cifar10/c10_b512.gin", "snresPrune", "--mode=damage","--aug=simclr","--use_warmup"] // CD_FL
+["configs/gan/cifar10/c10_b512.gin", "snresPrune", "--mode=damage","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_b.npy"] // CD_PR
+["configs/gan/cifar10/c10_b512.gin", "snresPrune", "--mode=damage","--aug=simclr","--use_warmup","--imbalance","--trainSplit=split1_D_i.npy"] // CD_IM
 
 ```
-
 
 
 ### Testing Scripts
-
+** FID scores for all experiements
 * The script [test_gan_sample.py](test_gan_sample.py) generates and saves random samples from 
-  a pre-trained generator model into `*.jpg` files. For example,
+  a pre-trained generator model into `*.jpg` files. Need to be run for each experiement. Example parameters,
   ```
-  CUDA_VISIBLE_DEVICES=0 python test_gan_sample.py PATH/TO/G.pt sndcgan --n_samples=10000
+  [ "logs/gan/c10_b512X/sndcgan/contrad_simclr/3383/gen_best.pt",  "sndcgan", "--n_samples=2000"]
   ```
-  will load the generator stored at `PATH/TO/G.pt`, generate `n_samples=10000` samples from it,
+  will load the generator stored at `PATH/TO/G.pt`, generate `n_samples=20000` samples from it,
   and save them under `PATH/TO/samples_*/`.
 
-* The script [test_gan_sample_cddls.py](test_gan_sample_cddls.py) additionally takes the discriminator, and 
-  a linear evaluation head obtained from `test_lineval.py` to perform class-conditional cDDLS. For example,
+* To create FID score of all samples. First copy samples to SAMPLE_ROOT/["DC_FL","DC_IM","DC_PR","CD_FL","CD_IM","CD_PR","DM_FL","DM_IM","DM_PR"
+* test_tf_inception_experiments.py (parameter SAMPLE_ROOT, STATS) Example parameters:
   ```
-  CUDA_VISIBLE_DEVICES=0 python test_gan_sample_cddls.py LOGDIR PATH/TO/LINEAR.pth.tar sndcgan
+  [ "/mnt/e/5704_testcase","third_party/fid/cifar10_stats.npz"] 
   ```
-  will load G and D stored in `LOGDIR`, the linear head stored at `PATH/TO/LINEAR.pth.tar`,
-  and save the generated samples from cDDLS under `LOGDIR/samples_cDDLS_*/`.
+  will load each sample set and create log of FID and inception of all experiments
 
+** FID scores for major and minor imbalance class
 * The script [test_lineval.py](test_lineval.py) performs linear evaluation for a given 
   pre-trained discriminator model stored at `model_path`:
   ```
   CUDA_VISIBLE_DEVICES=0 python test_lineval.py PATH/TO/D.pt sndcgan
   ```
+   example parameters [ "logs/gan/c10_b512/snresnet18/contrad_simclr_L1.0_T0.1/9950/dis.pt",  "snresnet18"]
+   
+* Use the linear evaluator to move the samples from experiement/img to experiement/img/[0,...9] using test_read_classify_samples.py
+parameters  ( SAMPLE_ROOT, linear eval directory, linear eval wieghts). Examples parameters:
+[ "/mnt/e/5704_testcase", "logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL","logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL/lin_eval_3169.pth.tar",  "sndcgan"]
 
 * The script [test_tf_inception.py](test_tf_inception.py) computes Fréchet Inception distance (FID) and
   Inception score (IS) with TensorFlow backend using the original code of FID available at https://github.com/bioinf-jku/TTUR.
   `tensorflow-gpu <= 1.14.0` is required to run this script. It takes a directory of generated samples 
   (e.g., via `test_gan_sample.py`) and an `.npz` of pre-computed statistics:
   ```
-  python test_tf_inception.py PATH/TO/GENERATED/IMAGES/ PATH/TO/STATS.npz --n_imgs=10000 --gpu=0 --verbose
+  [ "logs/gan/c10_b512X/sndcgan/contrad_simclr/3383/samples_5576_n200","third_party/fid/cifar10_stats.npz"] 
   ```
   A pre-computed statistics file per dataset can be either found in http://bioinf.jku.at/research/ttur/, 
   or manually computed - you can refer [`third_party/tf/examples`](third_party/tf/examples) for the sample scripts to this end.
