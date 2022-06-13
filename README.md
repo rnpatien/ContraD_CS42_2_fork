@@ -105,19 +105,18 @@ CUDA_VISIBLE_DEVICES=0 python train_gan.py configs/gan/cifar10/c10_b512.gin sndc
   pre-trained discriminator model stored at `model_path`:
   ```
   CUDA_VISIBLE_DEVICES=0 python test_lineval.py PATH/TO/D.pt sndcgan
-  ```
    example parameters [ "logs/gan/c10_b512/snresnet18/contrad_simclr_L1.0_T0.1/9950/dis.pt",  "snresnet18"]
-   
+  ```   
 * Use the linear evaluator to move the samples from experiement/ to experiement_Class/[0,...9] using test_read_classify_samples.py
 parameters  ( SAMPLE_ROOT, linear eval directory, linear eval wieghts). Examples parameters:
-
+  ```
 [ "/mnt/e/5704_testcase", "logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL","logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL/lin_eval_3169.pth.tar",  "sndcgan"]
-
+  ```
 * Finally manually combine the minor and major class in experiement_Class/[Max,Min] 
 * Then rerun test_tf_inception_experiments.py with different parameter for FID scores of the min and max class
   ```
   [ "/mnt/e/5704_testcase","third_party/fid/cifar10_stats.npz","--verbose","--MinMax","--n_imgs=100"] 
-
+  ```
   
 
 
