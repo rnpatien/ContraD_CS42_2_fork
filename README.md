@@ -106,9 +106,9 @@ CUDA_VISIBLE_DEVICES=0 python train_gan.py configs/gan/cifar10/c10_b512.gin sndc
   ```
   CUDA_VISIBLE_DEVICES=0 python test_lineval.py PATH/TO/D.pt sndcgan
    example parameters [ "logs/gan/c10_b512/snresnet18/contrad_simclr_L1.0_T0.1/9950/dis.pt",  "snresnet18"]
-  ```   
+  ```
 * Use the linear evaluator to move the samples from experiement/ to experiement_Class/[0,...9] using test_read_classify_samples.py
-parameters  ( SAMPLE_ROOT, linear eval directory, linear eval wieghts). Examples parameters:
+parameters  ( SAMPLE_ROOT, linear eval directory, linear eval wieghts). Examples parameters
   ```
 [ "/mnt/e/5704_testcase", "logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL","logs/gan/c10_b512X/sndcgan/contrad_simclr/DC_CD_FL/lin_eval_3169.pth.tar",  "sndcgan"]
   ```
