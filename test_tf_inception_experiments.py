@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description='Testing script: FID / IS with Tens
 parser.add_argument('images', type=str, help='Path to the directory of generated images')
 parser.add_argument('stats', type=str, help='Path to precomputed .npz statistics')
 
-parser.add_argument('--n_imgs', type=int, default=10000,
+parser.add_argument('--n_imgs', type=int, default=100,
                     help='Number of images used to calculate the distances (default: 10000)')
 parser.add_argument('--batch_size', type=int, default=500,
                     help='Batch size (default: 500)')
@@ -24,6 +24,8 @@ parser.add_argument('--inception_dir', type=str, default=None,
                     help='Directory to inception network')
 parser.add_argument('--verbose', action='store_true',
                     help='Report status of program in console')
+parser.add_argument('--MinMax', action='store_false',
+                    help='FID of major and minor classes')
 
 args = parser.parse_args()
 
@@ -48,14 +50,18 @@ if args.inception_dir is None:
 PATH_INC = fid.check_or_download_inception(args.inception_dir)
 
 orgPath = args.images    
-GBL_FN = str(orgPath +'/'+ f'test_inception.csv') # max min
+
+
+if False:
+    theList=["DC_FL","DC_IM","DC_PR","CD_FL","CD_IM","CD_PR","DM_FL","DM_IM","DM_PR"]
+    GBL_FN = str(orgPath +'/'+ f'test_inception.csv') # max min
+else:
+    theList=["CD_IM","CD_IM_Class/Min","CD_IM_Class/Max","DM_IM","DM_IM_Class/Min","DM_IM_Class/Max",] #max min option
+    GBL_FN = str(orgPath +'/'+ f'test_inception_class.csv') # max min
 init_logfile(GBL_FN, "FID,IS_MEAN,IS_STD,TEST")
 
-theList=["DC_FL","DC_IM","DC_PR","CD_FL","CD_IM","CD_PR","DM_FL","DM_IM","DM_PR"]
-# theList=["RS_CD_IM","RS_DM_IM"] #max min option
-
 for partPath in theList:
-    PATH_DATA="/mnt/e/5704_testcase/"+partPath + "/img/"
+    PATH_DATA="/mnt/e/5704_testcase/"+partPath
     if not os.path.exists(PATH_DATA):
         raise RuntimeError("Invalid path: %s" % PATH_DATA)
     PATH_DATA = pathlib.Path(PATH_DATA)
